@@ -2,45 +2,46 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 )
 
-func search(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		id := r.URL.Query().Get("id")
-		fmt.Fprintln(w, id)
-	}
+type Mahasiswa struct {
+	Nama    string `json:"nama"`
+	Umur    int    `json:"umur"`
+	Jurusan string `json:"jurusan"`
 }
 
 func create(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		r.ParseForm()
-		id := r.FormValue("id")
-		nama := r.FormValue("nama")
-		umur := r.FormValue("umur")
-
-		fmt.Fprintln(w, id)
-		fmt.Fprintln(w, nama)
-		fmt.Fprintln(w, umur)
+	if r.Method != http.MethodPost {
+		http.Error(w, "Hanya mendukung method POST!", http.StatusMethodNotAllowed)
+		return
 	}
-}
 
-func responseJson(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
-		"pesan":  "berhasil menambah data !",
+	var mahasiswas []Mahasiswa
+	err := json.NewDecoder(r.Body).Decode(&mahasiswas)
+	if err != nil {
+		// Log error untuk developer
+		log.Println("Error decoding JSON:", err)
+		// Kirim error ke user
+		http.Error(w, "Gagal decode JSON. Pastikan format benar.", http.StatusBadRequest)
+		return
+	}
+
+	response := map[string]interface{}{
+		"pesan":  "Berhasil membuat data!",
+		"data":   mahasiswas,
 		"status": http.StatusOK,
 	}
 	w.Header().Set("Content-Type", "application/json")
-
-	json.NewEncoder(w).Encode(data)
+	w.WriteHeader(http.StatusOK) // Set status code eksplisit
+	json.NewEncoder(w).Encode(response)
 }
 
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/search", search)
-	mux.HandleFunc("/", create)
-	mux.HandleFunc("/response-json", responseJson)
+	mux.HandleFunc("/create", create)
 
+	log.Println("Server running at http://localhost:8080")
 	http.ListenAndServe(":8080", mux)
 }
